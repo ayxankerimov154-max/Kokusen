@@ -11,7 +11,8 @@ import {
   Square,
   Shield,
   Layers,
-  Sparkles
+  Sparkles,
+  Package
 } from 'lucide-react';
 import { useSimulator } from './hooks/useSimulator';
 import { PhoneSimulator } from './components/PhoneSimulator';
@@ -20,13 +21,16 @@ import { DatabaseInspector } from './components/DatabaseInspector';
 import { LogcatViewer } from './components/LogcatViewer';
 import { ArchitectureDocs } from './components/ArchitectureDocs';
 import { GoogleWorkspacePanel } from './components/GoogleWorkspacePanel';
+import { ApkDistributionPanel } from './components/ApkDistributionPanel';
 import { generateAndroidProjectZip } from './utils/zipGenerator';
+import { generateDebugApkBlob } from './utils/apkGenerator';
 
-type ActiveTab = 'emulator' | 'code' | 'database' | 'logcat' | 'workspace' | 'docs';
+type ActiveTab = 'emulator' | 'code' | 'database' | 'apk' | 'logcat' | 'workspace' | 'docs';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('emulator');
   const [isZipping, setIsZipping] = useState(false);
+  const [isGeneratingApk, setIsGeneratingApk] = useState(false);
 
   const {
     state,
@@ -58,6 +62,25 @@ export default function App() {
       console.error('Failed to generate zip:', err);
     } finally {
       setIsZipping(false);
+    }
+  };
+
+  const handleDownloadApk = async () => {
+    try {
+      setIsGeneratingApk(true);
+      const { blob } = await generateDebugApkBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'TechnovisAze-Learning-Bot-debug.apk';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate APK:', err);
+    } finally {
+      setIsGeneratingApk(false);
     }
   };
 
@@ -151,11 +174,22 @@ export default function App() {
               <span>{state.isRunning ? 'FGS ACTIVE (SPECIAL_USE)' : 'SERVICE STOPPED'}</span>
             </div>
 
+            {/* Download APK Button */}
+            <button
+              onClick={handleDownloadApk}
+              disabled={isGeneratingApk}
+              className="py-1.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-2 transition-all shadow-md shadow-emerald-950/50 disabled:opacity-50 cursor-pointer"
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isGeneratingApk ? 'Packaging...' : 'Download APK (.apk)'}</span>
+              <span className="sm:hidden">APK</span>
+            </button>
+
             {/* Download Project Zip Button */}
             <button
               onClick={handleDownloadZip}
               disabled={isZipping}
-              className="py-1.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-2 transition-all shadow-md shadow-indigo-950/50 disabled:opacity-50"
+              className="py-1.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-2 transition-all shadow-md shadow-indigo-950/50 disabled:opacity-50 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{isZipping ? 'Generating...' : 'Download Project (.ZIP)'}</span>
@@ -177,6 +211,18 @@ export default function App() {
           >
             <Smartphone className="w-3.5 h-3.5" />
             <span>Interactive Android Emulator</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('apk')}
+            className={`px-3.5 py-1.5 rounded-xl font-medium flex items-center gap-2 transition-all whitespace-nowrap ${
+              activeTab === 'apk'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5 text-emerald-400" />
+            <span>APK & Build Distribution</span>
           </button>
 
           <button
@@ -379,7 +425,15 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 2: PRODUCTION ANDROID CODE EXPLORER */}
+        {/* VIEW 2: APK & BUILD DISTRIBUTION */}
+        {activeTab === 'apk' && (
+          <ApkDistributionPanel
+            onExportProjectZip={handleDownloadZip}
+            isZipping={isZipping}
+          />
+        )}
+
+        {/* VIEW 3: PRODUCTION ANDROID CODE EXPLORER */}
         {activeTab === 'code' && <CodeExplorer />}
 
         {/* VIEW 3: ROOM DB INSPECTOR */}

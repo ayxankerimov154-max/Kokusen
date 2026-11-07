@@ -57,6 +57,74 @@ GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
   );
 
   zip.file(
+    'gradle/wrapper/gradle-wrapper.properties',
+    `distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.5-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+`
+  );
+
+  zip.file(
+    'gradlew',
+    `#!/bin/sh
+# Gradle start up script for POSIX systems
+exec gradle "$@"
+`
+  );
+
+  zip.file(
+    'gradlew.bat',
+    `@rem Gradle start up script for Windows
+@gradle "%*"
+`
+  );
+
+  zip.file(
+    '.github/workflows/build-apk.yml',
+    `name: Build TechnovisAze Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Package APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Execute Permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK with Gradle
+        env:
+          GEMINI_API_KEY: \${{ secrets.GEMINI_API_KEY }}
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TechnovisAze-Learning-Bot-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+`
+  );
+
+  zip.file(
     'README.md',
     `# TechnovisAze Learning Bot (Android)
 
@@ -67,24 +135,34 @@ The bot loops strictly in this order:
 1. **PUBG Mobile**
 2. **Roblox**
 3. **Minecraft**
-4. Sleeps (30 minutes in production) and repeats.
+4. Sleeps (configurable via SharedPreferences, defaults to 30 minutes in production) and repeats.
 
-## Setup Instructions
-1. Open **Android Studio** (Hedgehog 2023.1.1 or later).
-2. Select **Open** and choose this project folder.
-3. Open \`local.properties\` (or copy from \`local.properties.example\`) and add your Gemini API key:
-   \`\`\`
-   GEMINI_API_KEY=your_actual_gemini_api_key
-   \`\`\`
-4. Sync Gradle project files.
-5. Connect your Android device (or launch emulator running API 26 to 34).
-6. Click **Run 'app'**.
-7. Tap **Start Autonomous Learning Loop** and grant the Notification permission when prompted.
+## How to Build the APK
+### Option 1: Terminal / Command Line (Gradle)
+\`\`\`bash
+# Build Debug APK
+./gradlew assembleDebug
+
+# Output APK path:
+# app/build/outputs/apk/debug/app-debug.apk
+
+# Install directly to connected phone/emulator via ADB:
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+\`\`\`
+
+### Option 2: Android Studio GUI
+1. Open **Android Studio** (Hedgehog 2023.1.1 or Ladybug 2024.2+).
+2. Click **Open** and select this directory.
+3. In the top menu, go to **Build** > **Build Bundle(s) / APK(s)** > **Build APK(s)**.
+4. Android Studio will generate \`app-debug.apk\`. Click "locate" in the notification popup.
+
+### Option 3: GitHub Actions (Free Cloud Build)
+Push this project to a GitHub repository. The included \`.github/workflows/build-apk.yml\` will automatically build the APK on every commit and attach it as a downloadable artifact.
 
 ## Architecture Highlights
 - **Service**: \`BackgroundLearningService\` with \`PARTIAL_WAKE_LOCK\` & low-priority \`Dispatchers.IO\` coroutines (0% FPS impact on games).
 - **Database**: \`Room\` DB with reactive \`Flow\` queries in \`BotMemoryDao\`.
-- **AI**: \`GeminiClient\` using \`com.google.ai.client.generativeai:0.9.0\`.
+- **AI**: \`GeminiClient\` using \`gemini-3.8-flash\`.
 - **UI**: 100% Jetpack Compose with Material 3.
 `
   );
